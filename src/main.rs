@@ -80,7 +80,6 @@ fn community_posts(community: i32, page: i32) -> String {
  	format!( "Requested Posts of from community {} with page {}", community, page )
 }
 
-//Post to community, put stuff in headers
 #[post( "/<community>/<text>/<emotion>" )]
 fn community_post_to(community: i32, text: String, emotion: i8 ) -> Status {
 	if community == 1 {
