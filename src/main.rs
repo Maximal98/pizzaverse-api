@@ -76,15 +76,15 @@ fn user(id: i64) -> Status {
 }
 
 //Get all yeahed posts from user
-#[get( "/user/<id>/yeahed" )]
-fn user_yeahed(id: i64) -> String {
- 	format!( "Requested Yeahed Posts of User {}", id )
+#[get( "/user/<id>/yeahed/<page>" )]
+fn user_yeahed( id: i64, page: i32 ) -> String {
+ 	format!( "Requested Yeahed Posts of User {} at page {}", id, page )
 }
 
 //Get all posts from user, divided into segments of 20
-#[get( "/user/<id>/posts" )]
-fn user_posts(id: i64) -> String {
- 	format!( "Requested Posts of User {}", id )
+#[get( "/user/<id>/posts/<page>" )]
+fn user_posts( id: i64, page: i32 ) -> String {
+ 	format!( "Requested Posts of User {} at page {}", id, page )
 }
 
 // Post Functions
