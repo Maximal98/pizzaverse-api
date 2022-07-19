@@ -102,13 +102,16 @@ async fn community_post_to( db: DB, community: i64, post: String, img: Data<'_> 
 
 	db.run(move |conn| {
 
-		conn.execute("INSERT INTO posts (id, text, emotion, spoiler, timestamp ) VALUES (?1, ?2, ?3, ?4, ?5)",
+		conn.execute("INSERT INTO posts ( id, community, poster, text, emotion, spoiler, timestamp ) VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )",
 				params![ Rnum::newi64().rannum_in( 0.0, 9223372036854775807.0 ).geti64(),
+					 community,
+					 "notices your placeholder text UwU",
 					 postdata.text,
 					 postdata.emotion,
 					 postdata.spoiler,
 					 SystemTime::now().duration_since( UNIX_EPOCH ).unwrap().as_secs()
-				])
+				       ]
+			    )
 	}).await.ok();
 
 
@@ -124,6 +127,16 @@ async fn community_post_to( db: DB, community: i64, post: String, img: Data<'_> 
 fn rocket() -> _ {
 	set_seeds( SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos().into() );
 
-	rocket::build().attach( DB::fairing() ).mount( "/", routes![index, user, user_yeahed, user_posts, community_posts, community_post_to, shutdown ] )
+	rocket::build()
+		.attach( DB::fairing() )
+		.mount( "/", routes![index,
+				     user,
+				     user_yeahed,
+				     user_posts,
+				     community_posts,
+				     community_post_to,
+				     shutdown 
+				    ]
+		      )
 }
 
