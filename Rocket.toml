@@ -14,5 +14,5 @@ read_timeout = 5
 write_timeout = 5
 limits = { forms = 32768 }
 
-[default.databases.sqlite_logs]
-url = "./PizzaDB.sqlite"
+[default.databases.db]
+url = "./DB/PizzaDB.sqlite"

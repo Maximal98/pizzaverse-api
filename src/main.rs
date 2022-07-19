@@ -1,39 +1,54 @@
-#[macro_use] extern crate rocket;
+use std::time::{ SystemTime, UNIX_EPOCH };
+
+#[ macro_use ] extern crate rocket;
 
 //I FUCKING LOVE ROCKET
-use rocket::Shutdown;
+use rocket::{ Shutdown, Data };
 use rocket::http::Status;
-use rocket::request::{Request, FromRequest, Outcome};
-use rocket_db_pools::{sqlx, Database};
+use rocket::request::{ Request, FromRequest, Outcome };
+use rocket_sync_db_pools::{ database, rusqlite };
+use rocket::serde::{ Deserialize, json };
 
-#[derive(Database)]
-#[database("sqlite_db")]
-struct Db(sqlx::SqlitePool);
+use self::rusqlite::params;
+
+
+use ran::{ set_seeds, Rnum };
+
+#[database("db")]
+struct DB(rusqlite::Connection);
 
 struct SUAuth<'r>(&'r str);
 
-#[derive(Debug)]
+#[ derive( Debug ) ]
 enum KeyError {
 	Missing,
 	Invalid,
 }
 
-#[rocket::async_trait]
+#[ derive( Deserialize )]
+#[ serde( crate = "rocket::serde" ) ]
+struct NewPost {
+	text: String,
+	emotion: i8,
+	spoiler: bool
+}
+
+#[ rocket::async_trait ]
 impl<'r> FromRequest<'r> for SUAuth<'r> {
-    type Error = KeyError;
+	type Error = KeyError;
 
-    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        /// Returns true if `key` is a valid API key string.
-        fn is_valid(key: &str) -> bool {
-            key == "valid_api_key"
-        }
+	async fn from_request( req: &'r Request<'_> ) -> Outcome<Self, Self::Error> {
+		/// Returns true if `key` is a valid API key string.
+		fn is_valid(key: &str) -> bool {
+			key == "valid_api_key"
+		}
 
-        match req.headers().get_one("x-api-key") {
-            None => Outcome::Failure((Status::Forbidden, KeyError::Missing)),
-            Some(key) if is_valid(key) => Outcome::Success(SUAuth(key)),
-            Some(_) => Outcome::Failure((Status::Forbidden, KeyError::Invalid)),
-        }
-    }
+		match req.headers().get_one("x-api-key") {
+			None => Outcome::Failure((Status::Forbidden, KeyError::Missing)),
+			Some(key) if is_valid(key) => Outcome::Success(SUAuth(key)),
+			Some(_) => Outcome::Failure((Status::Forbidden, KeyError::Invalid)),
+		}
+	}
 }
 
 #[get("/shutdown")]
@@ -80,17 +95,46 @@ fn community_posts(community: i32, page: i32) -> String {
  	format!( "Requested Posts of from community {} with page {}", community, page )
 }
 
-#[post( "/<community>/<text>/<emotion>" )]
-fn community_post_to(community: i32, text: String, emotion: i8 ) -> Status {
+#[post( "/post/<community>/<post>" )]
+async fn community_post_to( db: DB, community: i32, post: String ) -> Status {
+
+	let postdata: NewPost = json::from_str( post.as_str() ).unwrap();
+
+	db.run(move |conn| {
+
+		conn.execute("INSERT INTO posts (id, text, emotion, spoiler, timestamp ) VALUES (?1, ?2, ?3, ?4, ?5)",
+				params![ Rnum::newi64().rannum_in( 0.0, 9223372036854775807.0 ).geti64(),
+					 postdata.text,
+					 postdata.emotion,
+					 postdata.spoiler,
+					 SystemTime::now().duration_since( UNIX_EPOCH ).unwrap().as_secs()
+				])
+	}).await.ok();
+
+
 	if community == 1 {
 		Status::Created
 	} else {
 		Status::BadRequest
-	}
+	} 
+}
+
+#[post( "/post/<community>/<text>/<emotion>", data= "<img>" )]
+async fn community_post_to_img( db: DB, community: i32, text: String, emotion: i8, img: Data<'_> ) -> Status {
+
+
+	
+	if community == 1 {
+		Status::Created
+	} else {
+		Status::BadRequest
+	} 
 }
 
 #[launch]
 fn rocket() -> _ {
-	rocket::build().mount( "/", routes![index, user, user_yeahed, user_posts, community_posts, community_post_to, shutdown ] )
+	set_seeds( SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos().into() );
+
+	rocket::build().attach( DB::fairing() ).mount( "/", routes![index, user, user_yeahed, user_posts, community_posts, community_post_to, community_post_to_img, shutdown ] )
 }
 

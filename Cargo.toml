@@ -6,13 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = "0.5.0-rc.2"
+rocket = { version = "0.5.0-rc.2", features = [ "json" ] }
+ran = { version = "1.0.1" }
 
-[dependencies.sqlx]
-version = "0.5.1"
-default-features = false
-features = ["macros", "offline", "migrate"]
-
-[dependencies.rocket_db_pools]
+[dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.2"
-features = ["sqlx_sqlite"]
+features = ["sqlite_pool"]
