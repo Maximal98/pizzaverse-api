@@ -66,7 +66,7 @@ fn index() -> Status {
 
 //Return 200 if User is found, else return 404
 #[get( "/user/<id>" )]
-fn user(id: i32) -> Status {
+fn user(id: i64) -> Status {
 	
 	if id != 69 {
 		Status::NotFound
@@ -77,13 +77,13 @@ fn user(id: i32) -> Status {
 
 //Get all yeahed posts from user
 #[get( "/user/<id>/yeahed" )]
-fn user_yeahed(id: i32) -> String {
+fn user_yeahed(id: i64) -> String {
  	format!( "Requested Yeahed Posts of User {}", id )
 }
 
 //Get all posts from user, divided into segments of 20
 #[get( "/user/<id>/posts" )]
-fn user_posts(id: i32) -> String {
+fn user_posts(id: i64) -> String {
  	format!( "Requested Posts of User {}", id )
 }
 
@@ -91,12 +91,12 @@ fn user_posts(id: i32) -> String {
 
 //Get posts of community, divided into segments of 20.
 #[get( "/posts/<community>/<page>" )]
-fn community_posts(community: i32, page: i32) -> String {
+fn community_posts(community: i64, page: i32) -> String {
  	format!( "Requested Posts of from community {} with page {}", community, page )
 }
 
-#[post( "/post/<community>/<post>" )]
-async fn community_post_to( db: DB, community: i32, post: String ) -> Status {
+#[post( "/post/<community>/<post>", data= "<img>" )]
+async fn community_post_to( db: DB, community: i64, post: String, img: Data<'_> ) -> Status {
 
 	let postdata: NewPost = json::from_str( post.as_str() ).unwrap();
 
@@ -119,22 +119,11 @@ async fn community_post_to( db: DB, community: i32, post: String ) -> Status {
 	} 
 }
 
-#[post( "/post/<community>/<text>/<emotion>", data= "<img>" )]
-async fn community_post_to_img( db: DB, community: i32, text: String, emotion: i8, img: Data<'_> ) -> Status {
-
-
-	
-	if community == 1 {
-		Status::Created
-	} else {
-		Status::BadRequest
-	} 
-}
 
 #[launch]
 fn rocket() -> _ {
 	set_seeds( SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos().into() );
 
-	rocket::build().attach( DB::fairing() ).mount( "/", routes![index, user, user_yeahed, user_posts, community_posts, community_post_to, community_post_to_img, shutdown ] )
+	rocket::build().attach( DB::fairing() ).mount( "/", routes![index, user, user_yeahed, user_posts, community_posts, community_post_to, shutdown ] )
 }
 
