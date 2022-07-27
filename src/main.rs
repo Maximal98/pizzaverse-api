@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 #[ macro_use ] extern crate rocket;
 
 //I FUCKING LOVE ROCKET
@@ -105,7 +107,7 @@ async fn community_post_to( db: DB, community: String, post: Json<NewPost> ) -> 
 					 post.content,
 					 post.emotion,
 					 post.spoiler,
-					 SystemTime::now().duration_since( UNIX_EPOCH ).unwrap().as_secs()
+					 SystemTime::now().duration_since( SystemTime::UNIX_EPOCH ).unwrap().as_secs()
 				       ]
 			    )
 	}).await.ok();
