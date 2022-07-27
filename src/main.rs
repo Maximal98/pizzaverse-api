@@ -1,5 +1,3 @@
-use std::time::{ SystemTime, UNIX_EPOCH };
-
 #[ macro_use ] extern crate rocket;
 
 //I FUCKING LOVE ROCKET
@@ -7,12 +5,9 @@ use rocket::{ Shutdown, Data };
 use rocket::http::Status;
 use rocket::request::{ Request, FromRequest, Outcome };
 use rocket_sync_db_pools::{ database, rusqlite };
-use rocket::serde::{ Deserialize, json };
+use rocket::serde::{ Deserialize, json, json::Json };
 
 use self::rusqlite::params;
-
-
-use ran::{ set_seeds, Rnum };
 
 #[database("db")]
 struct DB(rusqlite::Connection);
@@ -28,7 +23,7 @@ enum KeyError {
 #[ derive( Deserialize )]
 #[ serde( crate = "rocket::serde" ) ]
 struct NewPost {
-	text: String,
+	content: String,
 	emotion: i8,
 	spoiler: bool
 }
@@ -77,13 +72,13 @@ fn user(id: i64) -> Status {
 
 //Get all yeahed posts from user
 #[get( "/user/<id>/yeahed/<page>" )]
-fn user_yeahed( id: i64, page: i32 ) -> String {
+fn user_yeahed( id: String, page: i32 ) -> String {
  	format!( "Requested Yeahed Posts of User {} at page {}", id, page )
 }
 
 //Get all posts from user, divided into segments of 20
 #[get( "/user/<id>/posts/<page>" )]
-fn user_posts( id: i64, page: i32 ) -> String {
+fn user_posts( id: String, page: i32 ) -> String {
  	format!( "Requested Posts of User {} at page {}", id, page )
 }
 
@@ -91,31 +86,32 @@ fn user_posts( id: i64, page: i32 ) -> String {
 
 //Get posts of community, divided into segments of 20.
 #[get( "/posts/<community>/<page>" )]
-fn community_posts(community: i64, page: i32) -> String {
+fn community_posts(community: String, page: i32) -> String {
  	format!( "Requested Posts of from community {} with page {}", community, page )
 }
 
-#[post( "/post/<community>/<post>", data= "<img>" )]
-async fn community_post_to( db: DB, community: i64, post: String, img: Data<'_> ) -> Status {
+#[post( "/post/<community>", format = "json", data= "<post>" )]
+async fn community_post_to( db: DB, community: String, post: Json<NewPost> ) -> Status {
 
-	let postdata: NewPost = json::from_str( post.as_str() ).unwrap();
+	let community_clone = community.clone();
 
 	db.run(move |conn| {
 
-		conn.execute("INSERT INTO posts ( id, community, poster, text, emotion, spoiler, timestamp ) VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )",
-				params![ Rnum::newi64().rannum_in( 0.0, 9223372036854775807.0 ).geti64(),
-					 community,
+		
+		conn.execute("INSERT INTO posts ( id, community, poster, content, emotion, spoiler, timestamp ) VALUES ( ?1, ?2, ?3, ?4, ?5, ?6, ?7 )",
+				params![ random_string::generate( 16, "abcdefghijklmnopqrstuvwxyz1234567890" ),
+					 community_clone,
 					 "notices your placeholder text UwU",
-					 postdata.text,
-					 postdata.emotion,
-					 postdata.spoiler,
+					 post.content,
+					 post.emotion,
+					 post.spoiler,
 					 SystemTime::now().duration_since( UNIX_EPOCH ).unwrap().as_secs()
 				       ]
 			    )
 	}).await.ok();
 
 
-	if community == 1 {
+	if community == "SEX" {
 		Status::Created
 	} else {
 		Status::BadRequest
@@ -125,8 +121,6 @@ async fn community_post_to( db: DB, community: i64, post: String, img: Data<'_> 
 
 #[launch]
 fn rocket() -> _ {
-	set_seeds( SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos().into() );
-
 	rocket::build()
 		.attach( DB::fairing() )
 		.mount( "/", routes![index,
